@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"> 
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+        <title>Scavenger Hunt</title>
+		<style>
+*, *:after, *:before { -webkit-box-sizing: border-box; -moz-box-sizing: border-box; box-sizing: border-box; }
+body, html { font-size: 100%; padding: 0; margin: 0;}
+.clearfix:before, .clearfix:after { content: " "; display: table; }
+.clearfix:after { clear: both; }
+
+body { color: #6b7381; background: #f2f2f2; }
+
+.grid {
+	max-width: 69em;
+	list-style: none;
+	margin: 30px auto;
+	padding: 0;
+}
+
+.grid li {
+	display: block;
+	float: left;
+	padding: 7px;
+	width: 33%;
+	opacity: 0;
+}
+
+.grid li.shown,
+.no-js .grid li,
+.no-cssanimations .grid li {
+	opacity: 1;
+}
+
+.grid li a,
+.grid li img {
+	outline: none;
+	border: none;
+	display: block;
+	max-width: 100%;
+}
+
+.grid.effect-8 {
+	-webkit-perspective: 1300px;
+	perspective: 1300px;
+}
+
+.grid.effect-8 li.animate {
+	-webkit-transform-style: preserve-3d;
+	transform-style: preserve-3d;
+	-webkit-transform: scale(0.4);
+	transform: scale(0.4);
+	-webkit-animation: popUp .8s ease-in forwards;
+	animation: popUp .8s ease-in forwards;
+}
+
+@-webkit-keyframes popUp {
+	0% { }
+	70% { -webkit-transform: scale(1.1); opacity: .8; -webkit-animation-timing-function: ease-out; }
+	100% { -webkit-transform: scale(1); opacity: 1; }
+}
+
+@keyframes popUp {
+	0% { }
+	70% { -webkit-transform: scale(1.1); transform: scale(1.1); opacity: .8; -webkit-animation-timing-function: ease-out; animation-timing-function: ease-out; }
+	100% { -webkit-transform: scale(1); transform: scale(1); opacity: 1; }
+}
+
+@media screen and (max-width: 900px) {
+	.grid li {
+		width: 50%;
+	}
+}
+
+@media screen and (max-width: 400px) {
+	.grid li {
+		width: 100%;
+	}
+}
+        </style>
+	</head>
+	<body>
+		<div class="container">
+		
+			
+			<ul class="grid effect-8" id="grid">
+                               
+			</ul>
+        </div>
+        <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
+        <script src="https://unpkg.com/imagesloaded@4/imagesloaded.pkgd.min.js"></script>
+		<script>
+	
+
+	
+	var docElem = window.document.documentElement;
+
+	function getViewportH() {
+		var client = docElem['clientHeight'],
+			inner = window['innerHeight'];
+		
+		if( client < inner )
+			return inner;
+		else
+			return client;
+	}
+
+	function scrollY() {
+		return window.pageYOffset || docElem.scrollTop;
+	}
+
+	// http://stackoverflow.com/a/5598797/989439
+	function getOffset( el ) {
+		var offsetTop = 0, offsetLeft = 0;
+		do {
+			if ( !isNaN( el.offsetTop ) ) {
+				offsetTop += el.offsetTop;
+			}
+			if ( !isNaN( el.offsetLeft ) ) {
+				offsetLeft += el.offsetLeft;
+			}
+		} while( el = el.offsetParent )
+
+		return {
+			top : offsetTop,
+			left : offsetLeft
+		}
+	}
+
+	function inViewport( el, h ) {
+		var elH = el.offsetHeight,
+			scrolled = scrollY(),
+			viewed = scrolled + getViewportH(),
+			elTop = getOffset(el).top,
+			elBottom = elTop + elH,
+			// if 0, the element is considered in the viewport as soon as it enters.
+			// if 1, the element is considered in the viewport only when it's fully inside
+			// value in percentage (1 >= h >= 0)
+			h = h || 0;
+
+		return (elTop + elH * h) <= viewed && (elBottom - elH * h) >= scrolled;
+	}
+
+	function extend( a, b ) {
+		for( var key in b ) { 
+			if( b.hasOwnProperty( key ) ) {
+				a[key] = b[key];
+			}
+		}
+		return a;
+	}
+
+	function AnimOnScroll( el, options ) {	
+		this.el = el;
+		this.options = extend( this.defaults, options );
+		this._init();
+	}
+
+	AnimOnScroll.prototype = {
+		defaults : {
+			// Minimum and a maximum duration of the animation (random value is chosen)
+			minDuration : 0,
+			maxDuration : 0,
+			// The viewportFactor defines how much of the appearing item has to be visible in order to trigger the animation
+			// if we'd use a value of 0, this would mean that it would add the animation class as soon as the item is in the viewport. 
+			// If we were to use the value of 1, the animation would only be triggered when we see all of the item in the viewport (100% of it)
+			viewportFactor : 0
+		},
+		_init : function() {
+			this.items = Array.prototype.slice.call( document.querySelectorAll( '#' + this.el.id + ' > li' ) );
+			this.itemsCount = this.items.length;
+			this.itemsRenderedCount = 0;
+			this.didScroll = false;
+
+			var self = this;
+
+			imagesLoaded( this.el, function() {
+				
+				// initialize masonry
+				new Masonry( self.el, {
+					itemSelector: 'li',
+					transitionDuration : 0
+				} );
+				
+					// the items already shown...
+					self.items.forEach( function( el, i ) {
+						if( inViewport( el ) ) {
+							self._checkTotalRendered();
+                            el.classList.add('shown');
+						}
+					} );
+
+					// animate on scroll the items inside the viewport
+					window.addEventListener( 'scroll', function() {
+						self._onScrollFn();
+					}, false );
+					window.addEventListener( 'resize', function() {
+						self._resizeHandler();
+					}, false );
+
+			});
+		},
+		_onScrollFn : function() {
+			var self = this;
+			if( !this.didScroll ) {
+				this.didScroll = true;
+				setTimeout( function() { self._scrollPage(); }, 60 );
+			}
+		},
+		_scrollPage : function() {
+			var self = this;
+			this.items.forEach( function( el, i ) {
+				if( !el.classList.contains('shown') && !el.classList.contains('animate') && inViewport( el, self.options.viewportFactor ) ) {
+					setTimeout( function() {
+						var perspY = scrollY() + getViewportH() / 2;
+						self.el.style.WebkitPerspectiveOrigin = '50% ' + perspY + 'px';
+						self.el.style.MozPerspectiveOrigin = '50% ' + perspY + 'px';
+						self.el.style.perspectiveOrigin = '50% ' + perspY + 'px';
+
+						self._checkTotalRendered();
+
+						if( self.options.minDuration && self.options.maxDuration ) {
+							var randDuration = ( Math.random() * ( self.options.maxDuration - self.options.minDuration ) + self.options.minDuration ) + 's';
+							el.style.WebkitAnimationDuration = randDuration;
+							el.style.MozAnimationDuration = randDuration;
+							el.style.animationDuration = randDuration;
+						}
+						
+						el.classList.add('animate' );
+					}, 25 );
+				}
+			});
+			this.didScroll = false;
+		},
+		_resizeHandler : function() {
+			var self = this;
+			function delayed() {
+				self._scrollPage();
+				self.resizeTimeout = null;
+			}
+			if ( this.resizeTimeout ) {
+				clearTimeout( this.resizeTimeout );
+			}
+			this.resizeTimeout = setTimeout( delayed, 1000 );
+		},
+		_checkTotalRendered : function() {
+			++this.itemsRenderedCount;
+			if( this.itemsRenderedCount === this.itemsCount ) {
+				window.removeEventListener( 'scroll', this._onScrollFn );
+			}
+		}
+	}
+
+    function loadImages(data) {
+        const images = data.feed.entry.filter(entry => entry.content.$t.match(/https:\/\/files.slack.com.*/)).map(entry => entry.content.$t)
+        images.map(url => {
+            const li = document.createElement('li');
+            const img = document.createElement('img');
+            img.setAttribute('src', url);
+            li.appendChild(img);
+            return li;
+        }).forEach(li => {
+            document.querySelector('.grid').appendChild(li);
+        })
+        new AnimOnScroll( document.getElementById( 'grid' ), {
+            minDuration : 0.4,
+            maxDuration : 0.6,
+            viewportFactor : 0.2
+        } );
+    }
+    </script>
+        
+    <script src="https://spreadsheets.google.com/feeds/cells/1a-jni0UB6nrmXwpEaMVtBXVqD_2WNKbomi6D63GLL6E/1/public/full?alt=json&callback=loadImages"></script>
+	</body>
+</html>
